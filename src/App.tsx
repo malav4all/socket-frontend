@@ -30,12 +30,13 @@ const App: React.FC = () => {
 
       socket.onmessage = (event) => {
         console.log("Message received from server:", event.data);
-        setLog((prevLog) => [...prevLog, `Received: ${event.data}`]);
+        setLog((prevLog) => [...prevLog, event.data]);
       };
 
       socket.onclose = () => {
         console.log("Socket disconnected");
         setLog((prevLog) => [...prevLog, "Disconnected from server"]);
+        setSocket(null); // Set socket to null when disconnected
       };
 
       socket.onerror = (error) => {
@@ -62,10 +63,17 @@ const App: React.FC = () => {
     }
   };
 
+  const disconnectFromServer = () => {
+    if (socket) {
+      socket.close();
+      setSocket(null);
+    }
+  };
+
   return (
     <div className="p-4 bg-gray-100 h-screen flex items-center justify-center">
-      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-5xl overflow-y-auto">
-        <div className="flex mb-4">
+      <div className="bg-white shadow-lg rounded-lg p-6 w-full h-full max-w-full overflow-hidden flex flex-col">
+        <div className="flex mb-4 w-full">
           <div className="border p-2">
             <div className="mb-2">
               <input
@@ -92,7 +100,7 @@ const App: React.FC = () => {
           {connectionType === "tcpip" && (
             <div className="border p-2 ml-4 flex-grow">
               <div className="flex items-center mb-4">
-                <label className="w-24">IP:</label>
+                <label className="w-16">IP:</label>
                 <input
                   type="text"
                   value={ip}
@@ -101,7 +109,7 @@ const App: React.FC = () => {
                 />
               </div>
               <div className="flex items-center mb-4">
-                <label className="w-24">Port:</label>
+                <label className="w-16">Port:</label>
                 <input
                   type="text"
                   value={port}
@@ -109,7 +117,7 @@ const App: React.FC = () => {
                   className="p-1 border rounded flex-grow"
                 />
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center mb-4">
                 <input
                   type="checkbox"
                   checked={useAsServer}
@@ -122,8 +130,8 @@ const App: React.FC = () => {
           )}
 
           {connectionType === "serial" && (
-            <div className="border p-2 ml-4 flex-grow">
-              <div className="flex items-center mb-4">
+            <div className="border p-2 ml-4 flex-grow flex flex-wrap">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Port:</label>
                 <select
                   value={serialPort}
@@ -135,7 +143,7 @@ const App: React.FC = () => {
                   <option value="COM3">COM3</option>
                 </select>
               </div>
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Baud:</label>
                 <select
                   value={baudRate}
@@ -147,7 +155,7 @@ const App: React.FC = () => {
                   <option value="19200">19200</option>
                 </select>
               </div>
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Data Bits:</label>
                 <select
                   value={dataBits}
@@ -158,7 +166,7 @@ const App: React.FC = () => {
                   <option value="7">7</option>
                 </select>
               </div>
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Parity:</label>
                 <select
                   value={parity}
@@ -170,7 +178,7 @@ const App: React.FC = () => {
                   <option value="Odd">Odd</option>
                 </select>
               </div>
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Stop Bits:</label>
                 <select
                   value={stopBits}
@@ -181,7 +189,7 @@ const App: React.FC = () => {
                   <option value="2">2</option>
                 </select>
               </div>
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-4 w-1/3">
                 <label className="w-24">Flow Control:</label>
                 <select
                   value={flowControl}
@@ -198,21 +206,27 @@ const App: React.FC = () => {
 
           <div className="ml-4 flex flex-col justify-between">
             <button
-              className="bg-blue-500 text-white px-4 py-2 mb-2 rounded"
+              className={`${
+                socket ? "bg-gray-500" : "bg-blue-500"
+              } text-white px-4 py-2 mb-2 rounded`}
               onClick={connectToServer}
+              disabled={!!socket}
             >
               Connect
             </button>
             <button
-              className="bg-gray-400 text-white px-4 py-2 rounded"
-              onClick={() => socket?.close()}
+              className={`${
+                socket ? "bg-blue-500" : "bg-gray-500"
+              } text-white px-4 py-2 mb-2 rounded`}
+              onClick={disconnectFromServer}
+              disabled={!socket}
             >
               Disconnect
             </button>
           </div>
         </div>
 
-        <div className="border-t mt-4 pt-4">
+        <div className="border-t mt-4 pt-4 relative flex-grow overflow-hidden">
           <div className="flex mb-4">
             <button
               className={`mr-4 px-4 py-2 ${
@@ -236,203 +250,212 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {activeTab === "LIS1A" && (
-            <div className="p-4 border rounded">
-              <div className="mb-4">
-                <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded"
-                  disabled
-                >
-                  Send
-                </button>
-              </div>
-              <div className="flex items-center mb-4">
-                <input type="radio" name="simulate" className="mr-2" />
-                <label>Simulate Instrument</label>
-                <input type="radio" name="simulate" className="ml-4 mr-2" />
-                <label>Simulate Host</label>
-              </div>
-              <div className="flex items-center mb-4">
-                <input type="radio" name="frame" className="mr-2" />
-                <label>Use Fixed Frame Size</label>
-                <input
-                  type="number"
-                  value={fixedFrameSize}
-                  onChange={(e) => setFixedFrameSize(parseInt(e.target.value))}
-                  className="ml-2 p-1 border rounded w-16"
-                />
-              </div>
-              <div className="flex items-center mb-4">
-                <input type="radio" name="frame" className="mr-2" />
-                <label>Use a Frame for each Record</label>
-              </div>
-              <div className="flex flex-col mb-4">
-                <textarea
-                  className="border p-2 mb-2 h-32"
-                  placeholder="First space content"
-                ></textarea>
-                <textarea
-                  className="border p-2 h-32"
-                  placeholder="Second space content"
-                ></textarea>
-              </div>
+          <div className="absolute bottom-0 left-0 w-full p-4 bg-white">
+            <div className="flex items-center mb-4">
+              <label className="w-24">Disconnected</label>
+              <input type="text" className="p-2 border rounded ml-2 w-16" />
+              <button
+                className="bg-gray-300 text-black px-4 py-2 rounded ml-2"
+                disabled
+              >
+                Send Line
+              </button>
+              <input type="text" className="p-2 border rounded ml-2 w-16" />
+              <button
+                className="bg-gray-300 text-black px-4 py-2 rounded ml-2"
+                disabled
+              >
+                Send Char(s)
+              </button>
             </div>
-          )}
-
-          {activeTab === "Manual" && (
-            <div className="p-4 border rounded overflow-y-auto h-96">
-              <div className="flex mb-4">
-                <div className="mr-4">
-                  <label>Character List:</label>
-                  <select className="p-2 border rounded ml-2">
-                    <option value="<NUL>">&lt;NUL&gt; 0</option>
-                    <option value="<SOH>">&lt;SOH&gt; 1</option>
-                    <option value="<STX>">&lt;STX&gt; 2</option>
-                  </select>
-                </div>
-                <div className="mr-4">
-                  <label>Start String:</label>
-                  <input type="text" className="p-2 border rounded ml-2" />
-                </div>
-                <div>
-                  <label>End String:</label>
-                  <input type="text" className="p-2 border rounded ml-2" />
-                </div>
-              </div>
-              <div className="flex items-center mb-4">
-                <input type="checkbox" className="mr-2" />
-                <label>Old ASTM</label>
-                <input type="checkbox" className="ml-4 mr-2" />
-                <label>Checksum</label>
-              </div>
-              <div className="flex mb-4">
-                <label>Include:</label>
-                <select className="p-2 border rounded ml-2">
-                  <option value="Both Start and End">Both Start and End</option>
-                </select>
-              </div>
-              <div className="flex mb-4">
-                <label>Checksum:</label>
-                <select className="p-2 border rounded ml-2">
-                  <option value="AddMod256">AddMod256</option>
-                </select>
-              </div>
-              <div className="flex mb-4">
+            <div className="flex items-center mb-4">
+              <button
+                className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+                disabled
+              >
+                Send Memo
+              </button>
+              <button
+                className="bg-gray-300 text-black px-4 py-2 rounded"
+                disabled
+              >
+                Load Input
+              </button>
+            </div>
+            <div className="flex flex-wrap">
+              {[
+                "NULL",
+                "SOH",
+                "STX",
+                "ETX",
+                "EOT",
+                "ENQ",
+                "ACK",
+                "BEL",
+                "BS",
+                "HT",
+                "LF",
+                "VT",
+                "FF",
+                "CR",
+                "SO",
+                "SI",
+                "DLE",
+                "DC1",
+                "DC2",
+                "DC3",
+                "DC4",
+                "NAK",
+                "SYN",
+                "ETB",
+                "CAN",
+                "EM",
+                "SUB",
+                "ESC",
+                "FS",
+                "GS",
+                "RS",
+                "US",
+              ].map((char) => (
                 <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+                  key={char}
+                  className="bg-gray-300 text-black px-4 py-2 rounded m-1"
                   disabled
                 >
-                  Clear
+                  {char}
                 </button>
-              </div>
-              <div className="flex mb-4">
-                <div className="mr-4">
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 border rounded overflow-y-auto h-96 mb-40">
+            {activeTab === "LIS1A" && (
+              <div className="p-4">
+                <div className="mb-4">
                   <button
                     className="bg-gray-300 text-black px-4 py-2 rounded"
-                    onClick={sendMessage}
-                  >
-                    Sent
-                  </button>
-                </div>
-                <div>
-                  <button className="bg-gray-300 text-black px-4 py-2 rounded">
-                    Received
-                  </button>
-                </div>
-              </div>
-              <div className="mb-4">
-                <textarea
-                  className="border p-2 mb-2 h-32 w-full"
-                  placeholder="Sent content"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                ></textarea>
-              </div>
-              <div className="mb-4">
-                <textarea
-                  className="border p-2 h-32 w-full"
-                  placeholder="Received content"
-                  value={log.join("\n")}
-                  readOnly
-                ></textarea>
-              </div>
-              <div className="flex items-center mb-4">
-                <label className="w-24">Disconnected</label>
-                <input type="text" className="p-2 border rounded ml-2 w-16" />
-                <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded ml-2"
-                  disabled
-                >
-                  Send Line
-                </button>
-                <input type="text" className="p-2 border rounded ml-2 w-16" />
-                <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded ml-2"
-                  disabled
-                >
-                  Send Char(s)
-                </button>
-              </div>
-              <div className="flex items-center mb-4">
-                <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
-                  disabled
-                >
-                  Send Memo
-                </button>
-                <button
-                  className="bg-gray-300 text-black px-4 py-2 rounded"
-                  disabled
-                >
-                  Load Input
-                </button>
-              </div>
-              <div className="flex flex-wrap">
-                {[
-                  "NULL",
-                  "SOH",
-                  "STX",
-                  "ETX",
-                  "EOT",
-                  "ENQ",
-                  "ACK",
-                  "BEL",
-                  "BS",
-                  "HT",
-                  "LF",
-                  "VT",
-                  "FF",
-                  "CR",
-                  "SO",
-                  "SI",
-                  "DLE",
-                  "DC1",
-                  "DC2",
-                  "DC3",
-                  "DC4",
-                  "NAK",
-                  "SYN",
-                  "ETB",
-                  "CAN",
-                  "EM",
-                  "SUB",
-                  "ESC",
-                  "FS",
-                  "GS",
-                  "RS",
-                  "US",
-                ].map((char) => (
-                  <button
-                    key={char}
-                    className="bg-gray-300 text-black px-4 py-2 rounded m-1"
                     disabled
                   >
-                    {char}
+                    Send
                   </button>
-                ))}
+                </div>
+                <div className="flex items-center mb-4">
+                  <input type="radio" name="simulate" className="mr-2" />
+                  <label>Simulate Instrument</label>
+                  <input type="radio" name="simulate" className="ml-4 mr-2" />
+                  <label>Simulate Host</label>
+                </div>
+                <div className="flex items-center mb-4">
+                  <input type="radio" name="frame" className="mr-2" />
+                  <label>Use Fixed Frame Size</label>
+                  <input
+                    type="number"
+                    value={fixedFrameSize}
+                    onChange={(e) =>
+                      setFixedFrameSize(parseInt(e.target.value))
+                    }
+                    className="ml-2 p-1 border rounded w-16"
+                  />
+                </div>
+                <div className="flex items-center mb-4">
+                  <input type="radio" name="frame" className="mr-2" />
+                  <label>Use a Frame for each Record</label>
+                </div>
+                <div className="flex flex-col mb-4">
+                  <textarea
+                    className="border p-2 mb-2 h-32"
+                    placeholder="First space content"
+                  ></textarea>
+                  <textarea
+                    className="border p-2 h-32"
+                    placeholder="Second space content"
+                  ></textarea>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {activeTab === "Manual" && (
+              <div className="p-4">
+                <div className="flex mb-4">
+                  <div className="mr-4">
+                    <label>Character List:</label>
+                    <select className="p-2 border rounded ml-2">
+                      <option value="<NUL>">&lt;NUL&gt; 0</option>
+                      <option value="<SOH>">&lt;SOH&gt; 1</option>
+                      <option value="<STX>">&lt;STX&gt; 2</option>
+                    </select>
+                  </div>
+                  <div className="mr-4">
+                    <label>Start String:</label>
+                    <input type="text" className="p-2 border rounded ml-2" />
+                  </div>
+                  <div>
+                    <label>End String:</label>
+                    <input type="text" className="p-2 border rounded ml-2" />
+                  </div>
+                </div>
+                <div className="flex items-center mb-4">
+                  <input type="checkbox" className="mr-2" />
+                  <label>Old ASTM</label>
+                  <input type="checkbox" className="ml-4 mr-2" />
+                  <label>Checksum</label>
+                </div>
+                <div className="flex mb-4">
+                  <label>Include:</label>
+                  <select className="p-2 border rounded ml-2">
+                    <option value="Both Start and End">
+                      Both Start and End
+                    </option>
+                  </select>
+                </div>
+                <div className="flex mb-4">
+                  <label>Checksum:</label>
+                  <select className="p-2 border rounded ml-2">
+                    <option value="AddMod256">AddMod256</option>
+                  </select>
+                </div>
+                <div className="flex mb-4">
+                  <button
+                    className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+                    disabled
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex mb-4">
+                  <div className="mr-4">
+                    <button
+                      className="bg-gray-300 text-black px-4 py-2 rounded"
+                      onClick={sendMessage}
+                    >
+                      Sent
+                    </button>
+                  </div>
+                  <div>
+                    <button className="bg-gray-300 text-black px-4 py-2 rounded">
+                      Received
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <textarea
+                    className="border p-2 mb-2 h-32 w-full"
+                    placeholder="Sent content"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  ></textarea>
+                </div>
+                <div className="mb-4">
+                  <textarea
+                    className="border p-2 h-32 w-full"
+                    placeholder="Received content"
+                    value={log.join("\n")}
+                    readOnly
+                  ></textarea>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
